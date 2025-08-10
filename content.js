@@ -56,10 +56,9 @@ function wrapRatingsSectionWithSpoiler() {
     const isProfilePage = /^https:\/\/letterboxd\.com\/[^\/]+\/?$/.test(window.location.href);
 
     if (!isProfilePage) {
-      wrapSectionWithSpoiler(
-        document.querySelector('section.ratings-histogram-chart'),
-        'Hiding ratings.'
-      );
+      document.querySelectorAll('section.ratings-histogram-chart').forEach(section => {
+        wrapSectionWithSpoiler(section, 'Hiding ratings.');
+      });
     }
 
     wrapSectionWithSpoiler(document.querySelector('#popular-reviews'), 'Hiding popular reviews.');
@@ -91,36 +90,39 @@ function wrapRatingsSectionWithSpoiler() {
         section.querySelectorAll('span.rating').forEach(span => span.style.display = 'none');
       }
     });
+
+    // Mover .tomato-ratings y .meta-ratings al final del section.col-10.col-main
+    const mainSection = document.querySelector('section.section.col-10.col-main');
+    if (mainSection) {
+      ['tomato-ratings', 'meta-ratings'].forEach(cls => {
+        const el = document.querySelector(`.${cls}`);
+        if (el && !mainSection.contains(el)) {
+          mainSection.appendChild(el);
+        }
+      });
+    }
   }
 
-  // Procesar contenido inicialmente
   process();
 
-  // Observar cambios que añadan nuevo contenido relevante
   observer = new MutationObserver(process);
   observer.observe(document.body, { childList: true, subtree: true });
 }
 
-// Otras funciones igual, solo llamadas explícitas sin observer adentro
 function enhanceRuntimeDisplay() {
-  document.querySelectorAll('p.text-link.text-footer').forEach(p => {
-    if (p.dataset.runtimeEnhanced) return;
-    const match = p.textContent.match(/(\d+)\s*mins/);
+  document.querySelectorAll('.text-footer-extra.duration-extra').forEach(el => {
+    if (el.dataset.runtimeEnhanced) return;
+
+    const match = el.textContent.match(/(\d+)\s*mins/);
     if (!match) return;
 
     const minutes = parseInt(match[1], 10);
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
-    const formatted = ` / ${hours > 0 ? `${hours}h ` : ''}${mins}mins`;
+    const formatted = `${hours > 0 ? `${hours}h ` : ''}${mins}mins`;
 
-    const textNode = Array.from(p.childNodes).find(node =>
-      node.nodeType === Node.TEXT_NODE && node.textContent.includes('mins')
-    );
-
-    if (textNode) {
-      textNode.textContent = textNode.textContent.replace(/(\d+\s*mins)/, `$1${formatted}`);
-      p.dataset.runtimeEnhanced = "true";
-    }
+    el.textContent = el.textContent.replace(/(\d+\s*mins)/, `$1 / ${formatted}`);
+    el.dataset.runtimeEnhanced = "true";
   });
 }
 
@@ -152,17 +154,14 @@ function addShuffleButton() {
     return true;
   };
 
-  // Intenta insertar inmediatamente
   if (insertButton()) return;
 
-  // Observa si aún no está el DOM cargado
   const observer = new MutationObserver(() => {
     if (insertButton()) observer.disconnect();
   });
 
   observer.observe(document.body, { childList: true, subtree: true });
 }
-
 
 // Leer opciones y aplicar
 chrome.storage.local.get(['runtimeDisplay', 'hideReviews', 'shuffleButton'], (options) => {
